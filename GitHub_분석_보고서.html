@@ -1,0 +1,550 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>GitHub 사이트 분석 보고서</title>
+<style>
+  :root {
+    --navy: #1F4E79;
+    --blue: #2E75B6;
+    --sky: #5B9BD5;
+    --sky-light: #DEEBF7;
+    --amber: #C97A00;
+    --amber-light: #FFF4DB;
+    --ink: #222;
+    --muted: #5a6470;
+    --line: #d5dde6;
+    --bg: #ffffff;
+    --row-alt: #F3F7FB;
+    box-sizing: border-box;
+    padding-top: env(safe-area-inset-top, 0px);
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+  }
+  html { scroll-padding-top: calc(64px + env(safe-area-inset-top, 0px)); scroll-behavior: smooth; }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    font-family: "맑은 고딕", "Malgun Gothic", "Apple SD Gothic Neo", "Noto Sans KR", sans-serif;
+    color: var(--ink);
+    background: var(--bg);
+    line-height: 1.7;
+    font-size: 15.5px;
+    word-break: keep-all;
+  }
+
+  /* 상단 고정 내비게이션 */
+  nav.top {
+    position: sticky;
+    top: env(safe-area-inset-top, 0px);
+    z-index: 50;
+    background: var(--navy);
+    border-bottom: 3px solid var(--sky);
+    padding: 0 16px;
+  }
+  nav.top .inner {
+    max-width: 980px; margin: 0 auto;
+    display: flex; align-items: center; gap: 4px;
+    overflow-x: auto; white-space: nowrap; height: 48px;
+    scrollbar-width: none;
+  }
+  nav.top .inner::-webkit-scrollbar { display: none; }
+  nav.top .brand { color: #fff; font-weight: 700; margin-right: 14px; font-size: 14px; flex-shrink: 0; }
+  nav.top a { color: #dbe8f5; text-decoration: none; font-size: 13.5px; padding: 6px 10px; border-radius: 4px; flex-shrink: 0; }
+  nav.top a:hover, nav.top a:focus-visible { background: var(--blue); color: #fff; outline: none; }
+
+  /* 헤더 */
+  header.hero {
+    background: linear-gradient(135deg, var(--navy) 0%, var(--blue) 100%);
+    color: #fff; padding: 44px 20px 40px;
+  }
+  header.hero .inner { max-width: 980px; margin: 0 auto; }
+  header.hero .kicker { font-size: 14px; opacity: .85; margin: 0 0 8px; }
+  header.hero h1 { font-size: 30px; margin: 0 0 12px; line-height: 1.3; }
+  header.hero p.lead { font-size: 16px; margin: 0; max-width: 720px; opacity: .95; }
+  header.hero .meta { margin-top: 18px; font-size: 13px; opacity: .8; }
+
+  main { max-width: 980px; margin: 0 auto; padding: 8px 20px 60px; }
+  section { padding: 34px 0 10px; border-bottom: 1px solid var(--line); }
+  section:last-of-type { border-bottom: none; }
+  h2 {
+    color: var(--navy); font-size: 22px; margin: 0 0 18px;
+    padding-left: 12px; border-left: 5px solid var(--sky); line-height: 1.35;
+  }
+  h3 { color: var(--blue); font-size: 17px; margin: 26px 0 10px; }
+  p { margin: 0 0 12px; }
+  ul, ol { margin: 0 0 14px; padding-left: 22px; }
+  li { margin-bottom: 5px; }
+  strong { color: var(--navy); }
+  code {
+    font-family: Consolas, "D2Coding", Menlo, monospace; font-size: 13.5px;
+    background: #eef2f6; padding: 1px 6px; border-radius: 3px; color: #1c3a5c;
+  }
+  pre {
+    background: #1c2a3a; color: #e8eef5; padding: 14px 16px; border-radius: 6px;
+    overflow-x: auto; font-size: 13px; line-height: 1.55; margin: 10px 0 16px;
+  }
+  pre code { background: none; color: inherit; padding: 0; }
+
+  /* 통계 카드 */
+  .stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 12px; margin: 16px 0 20px; }
+  .stat { background: var(--sky-light); border-top: 4px solid var(--blue); padding: 14px 14px 12px; border-radius: 4px; }
+  .stat .num { font-size: 26px; font-weight: 700; color: var(--navy); line-height: 1.15; }
+  .stat .lbl { font-size: 13px; color: var(--muted); margin-top: 4px; }
+
+  /* 표 */
+  .tablewrap { overflow-x: auto; margin: 12px 0 18px; }
+  table { border-collapse: collapse; width: 100%; min-width: 520px; font-size: 14px; }
+  th { background: var(--navy); color: #fff; text-align: left; padding: 10px 12px; font-weight: 600; }
+  td { padding: 9px 12px; border-bottom: 1px solid var(--line); vertical-align: top; }
+  tbody tr:nth-child(even) td { background: var(--row-alt); }
+  td.term { font-weight: 700; color: var(--navy); white-space: nowrap; }
+
+  /* 콜아웃 */
+  .callout { border-left: 5px solid var(--sky); background: var(--sky-light); padding: 12px 16px; border-radius: 4px; margin: 14px 0 18px; }
+  .callout.warn { border-left-color: var(--amber); background: var(--amber-light); }
+  .callout .ttl { font-weight: 700; color: var(--navy); margin-bottom: 4px; }
+  .callout.warn .ttl { color: var(--amber); }
+  .callout p:last-child { margin-bottom: 0; }
+
+  /* 단계 */
+  .steps { counter-reset: step; list-style: none; padding: 0; margin: 12px 0 18px; }
+  .steps li { position: relative; padding: 10px 0 10px 46px; border-bottom: 1px dashed var(--line); margin: 0; }
+  .steps li::before {
+    counter-increment: step; content: counter(step);
+    position: absolute; left: 0; top: 10px; width: 32px; height: 32px; border-radius: 50%;
+    background: var(--blue); color: #fff; font-weight: 700; display: flex; align-items: center; justify-content: center; font-size: 14px;
+  }
+  .steps li b { color: var(--navy); }
+
+  /* 다이어그램 */
+  .diagram { margin: 14px 0 20px; }
+  .diagram svg { width: 100%; height: auto; display: block; }
+  .diagram .cap { font-size: 13px; color: var(--muted); text-align: center; margin-top: 6px; }
+
+  /* 용어 카드 */
+  .terms { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 14px; margin: 14px 0 20px; }
+  .term-card { border: 1px solid var(--line); border-top: 4px solid var(--sky); border-radius: 4px; padding: 14px 16px; background: #fff; }
+  .term-card h4 { margin: 0 0 6px; color: var(--navy); font-size: 16px; }
+  .term-card .en { font-size: 12.5px; color: var(--muted); font-weight: normal; margin-left: 6px; }
+  .term-card p { font-size: 14px; margin-bottom: 6px; }
+  .term-card .ana { font-size: 13.5px; color: #35516d; background: var(--sky-light); padding: 6px 10px; border-radius: 3px; }
+
+  footer { max-width: 980px; margin: 0 auto; padding: 20px; font-size: 12.5px; color: var(--muted); border-top: 1px solid var(--line); }
+  footer ul { padding-left: 18px; }
+
+  @media (max-width: 600px) {
+    header.hero h1 { font-size: 24px; }
+    h2 { font-size: 19px; }
+    body { font-size: 15px; }
+  }
+  @media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } }
+  @media print { nav.top { position: static; } section { page-break-inside: avoid; } }
+</style>
+</head>
+<body>
+
+<nav class="top">
+  <div class="inner">
+    <span class="brand">GitHub 분석 보고서</span>
+    <a href="#s1">개요</a>
+    <a href="#s2">운영 주체</a>
+    <a href="#s3">중요성·의미</a>
+    <a href="#s4">사용자 규모</a>
+    <a href="#s5">사용법</a>
+    <a href="#s6">핵심 용어</a>
+    <a href="#s7">활용 팁</a>
+  </div>
+</nav>
+
+<header class="hero">
+  <div class="inner">
+    <p class="kicker">기술 플랫폼 분석 보고서</p>
+    <h1>GitHub 사이트 분석 보고서<br>운영 주체 · 의미 · 사용자 규모 · 사용법 · 핵심 용어</h1>
+    <p class="lead">GitHub(github.com)는 소프트웨어 소스 코드를 저장·공유·협업하는 세계 최대의 개발 플랫폼입니다. 이 보고서는 GitHub가 무엇이며 왜 중요한지, 누가 운영하는지, 어떻게 사용하는지, 그리고 처음 접할 때 반드시 알아야 할 용어를 정리합니다.</p>
+    <div class="meta">작성 기준일: 2026년 9월 24일 · 수치 출처: GitHub Octoverse 2025 및 공개 통계 (본문 각주 참조)</div>
+  </div>
+</header>
+
+<main>
+
+<!-- 1. 개요 -->
+<section id="s1">
+  <h2>1. GitHub란 무엇인가</h2>
+  <p>GitHub는 <strong>Git</strong>이라는 버전 관리 도구를 기반으로 만들어진 <strong>웹 기반 코드 호스팅·협업 서비스</strong>입니다. 개발자는 자신의 코드를 GitHub에 올려 두고(저장), 변경 이력을 추적하며(버전 관리), 다른 사람과 함께 수정·검토합니다(협업). 오늘날 오픈소스 소프트웨어 대부분과 수많은 기업의 내부 코드가 GitHub 위에서 관리됩니다.</p>
+
+  <div class="callout">
+    <div class="ttl">비유로 이해하기 — "코드를 위한 구글 드라이브 + 이력 관리 + 회의실"</div>
+    <p>구글 드라이브가 문서를 저장하고 공유하는 곳이라면, GitHub는 <em>코드</em>를 저장하고 공유하는 곳입니다. 다만 단순 저장에 그치지 않고, "누가 언제 어떤 줄을 왜 바꿨는지"가 모두 기록되고(이력 관리), 수정안을 제안하고 검토·승인하는 절차(회의실)까지 갖추고 있다는 점이 다릅니다.</p>
+  </div>
+
+  <h3>Git과 GitHub의 차이</h3>
+  <div class="tablewrap">
+    <table>
+      <thead><tr><th style="width:18%">구분</th><th>Git</th><th>GitHub</th></tr></thead>
+      <tbody>
+        <tr><td class="term">정체</td><td>내 컴퓨터에 설치하는 <strong>프로그램</strong> (버전 관리 시스템)</td><td>인터넷에 있는 <strong>웹 서비스</strong> (Git 저장소 호스팅 + 협업 기능)</td></tr>
+        <tr><td class="term">만든 주체</td><td>리누스 토르발스(2005년, 리눅스 커널 개발용)</td><td>GitHub, Inc.(2008년 설립) → 현재 Microsoft 소유</td></tr>
+        <tr><td class="term">동작 위치</td><td>로컬(오프라인에서도 동작)</td><td>클라우드(브라우저 접속)</td></tr>
+        <tr><td class="term">관계</td><td colspan="2">Git이 "엔진"이라면 GitHub는 그 엔진을 얹은 "자동차 + 정비소 + 주차장". GitHub 없이 Git만 쓸 수 있지만, Git 없이 GitHub를 쓰기는 어렵습니다.</td></tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<!-- 2. 운영 주체 -->
+<section id="s2">
+  <h2>2. 운영 주체와 연혁</h2>
+  <p>GitHub는 2008년 미국 샌프란시스코에서 톰 프레스턴-워너, 크리스 완스트라스, P. J. 하이엣, 스콧 채콘이 창업했습니다. 2018년 <strong>Microsoft</strong>가 약 75억 달러(주식 교환)에 인수하여, 현재는 Microsoft의 자회사로 독립 브랜드를 유지하며 운영됩니다.</p>
+
+  <div class="tablewrap">
+    <table>
+      <thead><tr><th style="width:16%">연도</th><th>주요 사건</th></tr></thead>
+      <tbody>
+        <tr><td class="term">2005</td><td>리누스 토르발스가 Git 개발 (GitHub의 기반 기술)</td></tr>
+        <tr><td class="term">2008</td><td>GitHub 서비스 출시 — 웹에서 Git 저장소를 호스팅하고 "Pull Request"로 협업하는 방식 도입</td></tr>
+        <tr><td class="term">2011~2015</td><td>오픈소스 프로젝트 대거 이전, 사실상 오픈소스의 표준 거점으로 자리매김</td></tr>
+        <tr><td class="term">2018</td><td>Microsoft가 인수. 이후 무료 사용자에게 비공개(private) 저장소 무제한 개방</td></tr>
+        <tr><td class="term">2019~2020</td><td>GitHub Actions(자동화), GitHub Sponsors(후원), Codespaces(클라우드 개발환경) 출시</td></tr>
+        <tr><td class="term">2021~2023</td><td>GitHub Copilot(AI 코드 자동완성) 출시 — OpenAI 모델 기반, AI 개발 도구의 대표 사례가 됨</td></tr>
+        <tr><td class="term">2025~2026</td><td>AI 에이전트가 직접 Pull Request를 작성하는 "Copilot coding agent" 등 AI 중심 플랫폼으로 확장</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="callout warn">
+    <div class="ttl">주의 — Microsoft 소유이지만 Microsoft 전용은 아닙니다</div>
+    <p>인수 당시 "Microsoft 종속" 우려로 GitLab 등 경쟁 서비스로 이동하는 움직임이 있었으나, 이후 GitHub는 플랫폼 중립성을 유지했고 Google, Apple, Meta, 삼성 등 경쟁사 역시 GitHub에 공식 계정과 오픈소스 프로젝트를 운영합니다. Linux 재단 계열 프로젝트, Python, React, TensorFlow 등 핵심 오픈소스가 모두 GitHub에 있습니다.</p>
+  </div>
+
+  <h3>수익 구조</h3>
+  <ul>
+    <li><strong>무료(Free)</strong>: 공개·비공개 저장소 무제한, 개인·소규모 팀에 충분</li>
+    <li><strong>Pro / Team / Enterprise</strong>: 고급 권한 관리, 보안 기능, 감사 로그, SSO 등 — 기업 고객이 주요 수익원</li>
+    <li><strong>GitHub Copilot</strong>: AI 코딩 보조 구독 (개인·기업)</li>
+    <li><strong>Actions / Codespaces</strong>: 자동화 실행 시간, 클라우드 개발 환경 사용량 기반 과금</li>
+    <li><strong>Marketplace / Sponsors</strong>: 앱 판매, 개발자 후원 중개</li>
+  </ul>
+</section>
+
+<!-- 3. 중요성과 의미 -->
+<section id="s3">
+  <h2>3. GitHub의 중요성과 의미</h2>
+
+  <h3>3.1 "소프트웨어 세계의 공용 인프라"</h3>
+  <p>오늘날 스마트폰 앱, 웹 서비스, 반도체 설계 도구, AI 모델에 이르기까지 거의 모든 소프트웨어는 오픈소스 라이브러리 위에서 만들어집니다. 그 오픈소스의 압도적 다수가 GitHub에 있으므로, GitHub는 사실상 <strong>전 세계 소프트웨어 공급망의 허브</strong> 역할을 합니다.</p>
+
+  <h3>3.2 개발자의 "포트폴리오이자 이력서"</h3>
+  <p>GitHub 프로필의 활동 기록(잔디밭 모양의 contribution graph)과 공개 저장소는 채용 시장에서 실질적인 실력 증명으로 쓰입니다. 어떤 프로젝트에 어떤 기여를 했는지가 투명하게 남기 때문입니다.</p>
+
+  <h3>3.3 협업 방식 자체를 바꾼 플랫폼</h3>
+  <p>GitHub가 대중화한 <strong>Pull Request 기반 코드 리뷰</strong>는 "먼저 제안하고, 검토받고, 승인 후 합친다"는 협업 문화를 표준으로 만들었습니다. 이 방식은 코드뿐 아니라 문서, 설정, 데이터, 심지어 법령·논문 협업에도 응용되고 있습니다.</p>
+
+  <h3>3.4 AI 시대의 핵심 거점</h3>
+  <p>GitHub에 쌓인 방대한 공개 코드는 AI 코드 생성 모델의 학습 기반이 되었고, 역으로 GitHub는 Copilot을 통해 AI가 개발자와 함께 일하는 첫 대규모 현장이 되었습니다. 2026년 현재 AI 에이전트가 작성한 Pull Request가 급증하며, GitHub는 "사람과 AI가 코드로 협업하는 공간"으로 재정의되고 있습니다.</p>
+
+  <div class="callout">
+    <div class="ttl">비개발자에게도 의미가 있는 이유</div>
+    <p>GitHub는 코드가 아닌 것도 잘 다룹니다. 기술 문서 사이트(GitHub Pages로 무료 호스팅), 공개 데이터셋, 연구 자료, 설계 파일, 심지어 개인 블로그까지 GitHub로 관리·배포하는 사례가 많습니다. 반도체·하드웨어 분야에서도 펌웨어(예: Klipper, GRBL), 측정 장비 SDK, 회로 설계 파일이 GitHub에서 배포되므로, 사용법을 알아 두면 자료 확보와 문의(Issue)에 직접 도움이 됩니다.</p>
+  </div>
+</section>
+
+<!-- 4. 사용자 규모 -->
+<section id="s4">
+  <h2>4. 사용자 규모와 활동량</h2>
+  <p>GitHub가 매년 발표하는 통계 보고서 <strong>Octoverse</strong>(2025년판) 기준 주요 수치입니다.</p>
+
+  <div class="stats">
+    <div class="stat"><div class="num">1.8억+</div><div class="lbl">누적 개발자 계정 수</div></div>
+    <div class="stat"><div class="num">3,600만+</div><div class="lbl">2025년 한 해 신규 가입</div></div>
+    <div class="stat"><div class="num">6.3억</div><div class="lbl">전체 저장소(Repository) 수</div></div>
+    <div class="stat"><div class="num">9.86억+</div><div class="lbl">2025년 커밋(Commit) 수</div></div>
+    <div class="stat"><div class="num">5.19억</div><div class="lbl">2025년 병합된 Pull Request</div></div>
+    <div class="stat"><div class="num">2,000만+</div><div class="lbl">Copilot 사용자</div></div>
+  </div>
+
+  <div class="tablewrap">
+    <table>
+      <thead><tr><th>지표</th><th>2023년</th><th>2025년</th><th>비고</th></tr></thead>
+      <tbody>
+        <tr><td class="term">개발자 계정</td><td>약 1억</td><td>1.8억+</td><td>2년 만에 약 80% 증가, 초당 약 1명 가입</td></tr>
+        <tr><td class="term">전체 저장소</td><td>약 4.2억</td><td>6.3억</td><td>2025년에만 1.21억 개 신규 생성</td></tr>
+        <tr><td class="term">공개(오픈소스) 저장소</td><td>—</td><td>3.95억</td><td>전년 대비 19% 증가</td></tr>
+        <tr><td class="term">Fortune 100 기업 중 사용</td><td>—</td><td>90%</td><td>Copilot 도입 기준</td></tr>
+        <tr><td class="term">국가별 개발자 (상위)</td><td colspan="3">미국 약 2,800만 · 인도 약 2,190만 (인도가 가장 빠르게 성장)</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="callout warn">
+    <div class="ttl">수치 해석 시 유의점</div>
+    <p>"1.8억 개발자"는 <em>누적 계정 수</em>이며, 월간 활성 사용자(MAU)와는 다릅니다. 봇 계정·휴면 계정이 포함되므로 실제 활동 인원은 이보다 적습니다. 또한 2026년 들어 AI 에이전트가 생성하는 커밋·PR이 급증해 활동량 지표가 사람의 활동만 반영하지 않는다는 점도 고려해야 합니다. 정확한 최신 수치는 <code>github.blog</code> 및 <code>octoverse.github.com</code>에서 확인하십시오.</p>
+  </div>
+</section>
+
+<!-- 5. 사용법 -->
+<section id="s5">
+  <h2>5. GitHub 사용법</h2>
+
+  <h3>5.1 기본 작업 흐름 한눈에 보기</h3>
+  <div class="diagram">
+    <svg viewBox="0 0 900 250" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="GitHub 기본 작업 흐름 다이어그램">
+      <defs>
+        <marker id="arr" markerWidth="10" markerHeight="10" refX="8" refY="5" orient="auto">
+          <path d="M0,0 L10,5 L0,10 z" fill="#2E75B6"/>
+        </marker>
+      </defs>
+      <!-- 로컬 영역 -->
+      <rect x="20" y="20" width="400" height="210" rx="8" fill="#F3F7FB" stroke="#5B9BD5" stroke-width="1.5"/>
+      <text x="40" y="48" font-size="15" font-weight="700" fill="#1F4E79" font-family="Malgun Gothic, sans-serif">내 컴퓨터 (Local)</text>
+      <!-- 원격 영역 -->
+      <rect x="480" y="20" width="400" height="210" rx="8" fill="#DEEBF7" stroke="#2E75B6" stroke-width="1.5"/>
+      <text x="500" y="48" font-size="15" font-weight="700" fill="#1F4E79" font-family="Malgun Gothic, sans-serif">GitHub (Remote)</text>
+
+      <!-- 박스: 작업 디렉터리 -->
+      <rect x="45" y="80" width="150" height="60" rx="6" fill="#fff" stroke="#1F4E79" stroke-width="1.5"/>
+      <text x="120" y="105" text-anchor="middle" font-size="13.5" fill="#1F4E79" font-family="Malgun Gothic, sans-serif">작업 폴더</text>
+      <text x="120" y="124" text-anchor="middle" font-size="12" fill="#5a6470" font-family="Malgun Gothic, sans-serif">파일 수정</text>
+
+      <!-- 박스: 로컬 저장소 -->
+      <rect x="245" y="80" width="150" height="60" rx="6" fill="#fff" stroke="#1F4E79" stroke-width="1.5"/>
+      <text x="320" y="105" text-anchor="middle" font-size="13.5" fill="#1F4E79" font-family="Malgun Gothic, sans-serif">로컬 저장소</text>
+      <text x="320" y="124" text-anchor="middle" font-size="12" fill="#5a6470" font-family="Malgun Gothic, sans-serif">이력(commit) 보관</text>
+
+      <!-- 박스: 원격 저장소 -->
+      <rect x="505" y="80" width="150" height="60" rx="6" fill="#fff" stroke="#1F4E79" stroke-width="1.5"/>
+      <text x="580" y="105" text-anchor="middle" font-size="13.5" fill="#1F4E79" font-family="Malgun Gothic, sans-serif">원격 저장소</text>
+      <text x="580" y="124" text-anchor="middle" font-size="12" fill="#5a6470" font-family="Malgun Gothic, sans-serif">팀이 공유하는 원본</text>
+
+      <!-- 박스: Pull Request -->
+      <rect x="705" y="80" width="150" height="60" rx="6" fill="#fff" stroke="#1F4E79" stroke-width="1.5"/>
+      <text x="780" y="105" text-anchor="middle" font-size="13.5" fill="#1F4E79" font-family="Malgun Gothic, sans-serif">Pull Request</text>
+      <text x="780" y="124" text-anchor="middle" font-size="12" fill="#5a6470" font-family="Malgun Gothic, sans-serif">검토 → 병합(merge)</text>
+
+      <!-- 화살표 -->
+      <line x1="195" y1="110" x2="243" y2="110" stroke="#2E75B6" stroke-width="2" marker-end="url(#arr)"/>
+      <text x="219" y="98" text-anchor="middle" font-size="12" fill="#2E75B6" font-family="Consolas, monospace">commit</text>
+
+      <line x1="395" y1="110" x2="503" y2="110" stroke="#2E75B6" stroke-width="2" marker-end="url(#arr)"/>
+      <text x="449" y="98" text-anchor="middle" font-size="12" fill="#2E75B6" font-family="Consolas, monospace">push</text>
+
+      <line x1="655" y1="110" x2="703" y2="110" stroke="#2E75B6" stroke-width="2" marker-end="url(#arr)"/>
+
+      <!-- 되돌아오는 화살표 pull / clone -->
+      <path d="M505,170 C450,200 300,200 245,175" fill="none" stroke="#5B9BD5" stroke-width="2" stroke-dasharray="6 4" marker-end="url(#arr)"/>
+      <text x="375" y="212" text-anchor="middle" font-size="12" fill="#2E75B6" font-family="Consolas, monospace">clone / pull (내려받기)</text>
+    </svg>
+    <div class="cap">그림 1. 파일 수정 → commit(기록) → push(업로드) → Pull Request(검토·병합)의 기본 흐름</div>
+  </div>
+
+  <h3>5.2 처음 시작하기 (계정 생성부터 첫 업로드까지)</h3>
+  <ol class="steps">
+    <li><b>계정 만들기</b> — github.com 접속 → Sign up → 이메일·비밀번호·사용자명 입력. 사용자명은 프로필 주소(<code>github.com/사용자명</code>)가 되므로 신중히 정합니다. 무료 플랜으로 충분합니다.</li>
+    <li><b>저장소(Repository) 만들기</b> — 우측 상단 "+" → New repository → 이름 입력 → Public(공개)/Private(비공개) 선택 → "Add a README file" 체크 → Create.</li>
+    <li><b>파일 올리기 (웹 방식)</b> — 저장소 화면에서 "Add file → Upload files"로 드래그 앤 드롭. 코드를 몰라도 가능합니다. 하단에 변경 설명(commit message)을 적고 "Commit changes".</li>
+    <li><b>파일 올리기 (Git 방식)</b> — Git을 설치한 뒤 터미널에서 아래 명령을 실행합니다. 반복 작업·대용량 프로젝트에 적합합니다.
+<pre><code>git clone https://github.com/사용자명/저장소명.git   # 내려받기
+cd 저장소명
+# ... 파일 수정 ...
+git add .                                   # 변경 파일 선택
+git commit -m "측정 스크립트 추가"            # 변경 기록
+git push                                    # GitHub로 업로드</code></pre></li>
+    <li><b>GitHub Desktop 활용</b> — 명령어가 부담스럽다면 무료 GUI 프로그램 <strong>GitHub Desktop</strong>을 설치하면 클릭만으로 commit/push/pull이 가능합니다. VS Code에도 Git 기능이 내장되어 있습니다.</li>
+    <li><b>협업 참여</b> — 남의 저장소에 기여하려면 Fork → 수정 → Pull Request 순서를 따릅니다. (6장 용어 참조)</li>
+  </ol>
+
+  <h3>5.3 주요 화면 구성</h3>
+  <div class="tablewrap">
+    <table>
+      <thead><tr><th style="width:22%">탭 / 메뉴</th><th>용도</th></tr></thead>
+      <tbody>
+        <tr><td class="term">Code</td><td>파일 목록과 README. 초록색 "Code" 버튼으로 clone 주소 복사 또는 ZIP 다운로드</td></tr>
+        <tr><td class="term">Issues</td><td>버그 신고, 기능 요청, 질문. 프로젝트의 "민원 창구" 겸 할 일 목록</td></tr>
+        <tr><td class="term">Pull requests</td><td>제안된 변경 사항 목록. 검토·토론·승인·병합이 이루어지는 곳</td></tr>
+        <tr><td class="term">Actions</td><td>자동화(CI/CD). push할 때마다 테스트·빌드·배포를 자동 실행</td></tr>
+        <tr><td class="term">Wiki / Discussions</td><td>문서 공간과 자유 토론 게시판</td></tr>
+        <tr><td class="term">Releases</td><td>정식 배포 버전(v1.0 등)과 설치 파일 다운로드</td></tr>
+        <tr><td class="term">Settings</td><td>협업자 권한, 브랜치 보호 규칙, GitHub Pages 설정 등</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="callout">
+    <div class="ttl">코드를 쓰지 않는 사람이 자주 쓰는 기능</div>
+    <p>① <strong>Releases</strong>에서 프로그램 설치 파일 받기 ② <strong>Issues</strong>에서 버그 신고·질문하기 ③ <strong>README</strong> 읽고 설치법 확인하기 ④ <strong>Star</strong>로 관심 프로젝트 북마크하기 ⑤ <strong>GitHub Pages</strong>로 HTML 문서·간단한 웹 도구 무료 배포하기. 특히 ⑤는 저장소 Settings → Pages에서 브랜치만 지정하면 <code>사용자명.github.io/저장소명</code> 주소로 바로 공개됩니다.</p>
+  </div>
+</section>
+
+<!-- 6. 핵심 용어 -->
+<section id="s6">
+  <h2>6. 꼭 알아야 할 핵심 용어</h2>
+  <p>아래 용어는 GitHub 화면과 대화에서 매일 등장합니다. 각 용어를 정의와 비유로 정리했습니다.</p>
+
+  <div class="terms">
+    <div class="term-card">
+      <h4>Repository (저장소)<span class="en">줄여서 "repo"</span></h4>
+      <p>하나의 프로젝트를 담는 단위. 소스 코드, 문서, 이미지와 함께 <em>모든 변경 이력</em>이 들어 있습니다. Public(누구나 열람)과 Private(초대된 사람만)로 나뉩니다.</p>
+      <div class="ana">비유: 프로젝트 하나를 통째로 담은 "서류 캐비닛". 안에는 현재 문서뿐 아니라 과거의 모든 수정본이 함께 보관됩니다.</div>
+    </div>
+
+    <div class="term-card">
+      <h4>Commit (커밋)</h4>
+      <p>변경 사항을 저장소 이력에 기록하는 행위, 또는 그 기록 하나하나. 각 커밋은 "무엇을 왜 바꿨는지" 메시지와 고유 ID(해시)를 가지며, 언제든 그 시점으로 되돌릴 수 있습니다.</p>
+      <div class="ana">비유: 게임의 "세이브 포인트". 잘못되면 이전 세이브로 돌아갈 수 있고, 세이브마다 메모가 붙어 있습니다.</div>
+    </div>
+
+    <div class="term-card">
+      <h4>Branch (브랜치)</h4>
+      <p>본선(main)에서 갈라져 나온 독립적인 작업 줄기. 새 기능이나 실험을 본선에 영향 주지 않고 진행한 뒤, 완성되면 다시 합칩니다(merge).</p>
+      <div class="ana">비유: 원본 문서는 그대로 두고 "복사본에서 초안 작업"을 하다가, 완성되면 원본에 반영하는 것.</div>
+    </div>
+
+    <div class="term-card">
+      <h4>Merge (병합)</h4>
+      <p>브랜치의 변경 내용을 다른 브랜치(주로 main)에 합치는 작업. 같은 줄을 서로 다르게 고쳤다면 <strong>충돌(conflict)</strong>이 발생해 사람이 선택해야 합니다.</p>
+      <div class="ana">비유: 두 사람이 따로 고친 문서를 한 문서로 합치기. 같은 문장을 다르게 고쳤으면 어느 쪽을 쓸지 정해야 합니다.</div>
+    </div>
+
+    <div class="term-card">
+      <h4>Fork (포크)</h4>
+      <p>다른 사람의 저장소를 <em>내 계정으로 통째로 복사</em>하는 것. 원본을 건드릴 권한이 없어도 내 복사본에서 자유롭게 수정하고, 원본에 반영을 제안(Pull Request)할 수 있습니다.</p>
+      <div class="ana">비유: 남의 레시피를 내 노트에 옮겨 적어 내 식대로 개량하는 것. 개량본이 좋으면 원저자에게 "이렇게 바꿔 보시죠" 하고 제안할 수 있습니다.</div>
+    </div>
+
+    <div class="term-card">
+      <h4>Pull Request (PR, 풀 리퀘스트)</h4>
+      <p>"내 변경 사항을 당신 저장소로 끌어당겨(pull) 주세요"라는 요청. 변경 내용을 줄 단위로 비교해 보여 주며, 검토자가 댓글·승인·수정 요청을 남기고 최종 병합합니다. GitHub 협업의 핵심 절차입니다.</p>
+      <div class="ana">비유: 수정 제안서 + 결재 요청. "이렇게 고쳤으니 검토 후 반영해 주세요."</div>
+    </div>
+
+    <div class="term-card">
+      <h4>Clone (클론)</h4>
+      <p>GitHub의 저장소를 이력까지 포함해 내 컴퓨터로 통째로 내려받는 것. Fork가 "GitHub 안에서 내 계정으로 복사"라면 Clone은 "내 PC로 복사"입니다.</p>
+      <div class="ana">비유: 캐비닛 전체를 내 책상으로 복사해 오기.</div>
+    </div>
+
+    <div class="term-card">
+      <h4>Push / Pull (푸시 / 풀)</h4>
+      <p><strong>Push</strong>: 내 PC의 커밋을 GitHub로 올리기. <strong>Pull</strong>: GitHub의 최신 커밋을 내 PC로 가져오기. 팀 작업 시 "pull 먼저, 작업, 그다음 push"가 기본 습관입니다.</p>
+      <div class="ana">비유: Push는 "업로드", Pull은 "동기화(최신본 받기)".</div>
+    </div>
+
+    <div class="term-card">
+      <h4>Issue (이슈)</h4>
+      <p>버그, 기능 요청, 질문, 할 일을 등록하는 티켓. 번호(#123)가 붙고, 커밋이나 PR과 연결되어 "이 수정으로 이슈 #123 해결"처럼 추적됩니다.</p>
+      <div class="ana">비유: 프로젝트의 "민원 접수 게시판" 겸 "할 일 카드".</div>
+    </div>
+
+    <div class="term-card">
+      <h4>README</h4>
+      <p>저장소 첫 화면에 표시되는 소개 문서(<code>README.md</code>). 프로젝트가 무엇인지, 설치·사용법, 라이선스를 적습니다. Markdown 문법으로 작성합니다.</p>
+      <div class="ana">비유: 제품 상자에 붙은 "설명서 겸 안내문".</div>
+    </div>
+
+    <div class="term-card">
+      <h4>Star / Watch</h4>
+      <p><strong>Star</strong>: 관심 표시 겸 북마크. 스타 수는 프로젝트 인기의 척도로 쓰입니다. <strong>Watch</strong>: 해당 저장소의 이슈·PR 알림을 구독.</p>
+      <div class="ana">비유: Star는 "좋아요 + 즐겨찾기", Watch는 "알림 켜기".</div>
+    </div>
+
+    <div class="term-card">
+      <h4>GitHub Actions / CI</h4>
+      <p>저장소에 push나 PR이 생길 때 자동으로 테스트·빌드·배포를 실행하는 자동화 기능. CI(지속적 통합)/CD(지속적 배포)를 GitHub 안에서 구현합니다.</p>
+      <div class="ana">비유: 서류가 접수될 때마다 자동으로 검사·복사·배송까지 해 주는 "무인 처리 라인".</div>
+    </div>
+
+    <div class="term-card">
+      <h4>GitHub Pages</h4>
+      <p>저장소의 HTML 파일을 무료 웹사이트로 호스팅하는 기능. 정적 문서, 기술 보고서, 브라우저용 계산기·시각화 도구 배포에 널리 쓰입니다.</p>
+      <div class="ana">비유: 캐비닛 속 문서를 그대로 "온라인 전시관"에 걸어 두기.</div>
+    </div>
+  </div>
+
+  <h3>용어 관계 요약표</h3>
+  <div class="tablewrap">
+    <table>
+      <thead><tr><th style="width:20%">용어</th><th style="width:22%">한 줄 정의</th><th>어디서 / 언제 쓰나</th></tr></thead>
+      <tbody>
+        <tr><td class="term">Repository</td><td>프로젝트 단위 저장 공간</td><td>프로젝트를 시작할 때 만든다</td></tr>
+        <tr><td class="term">Commit</td><td>변경 기록 한 단위</td><td>의미 있는 작업을 마칠 때마다</td></tr>
+        <tr><td class="term">Branch</td><td>독립 작업 줄기</td><td>새 기능·실험을 시작할 때</td></tr>
+        <tr><td class="term">Merge</td><td>브랜치를 합치기</td><td>작업이 완성·승인되었을 때</td></tr>
+        <tr><td class="term">Fork</td><td>남의 저장소를 내 계정으로 복사</td><td>권한 없는 저장소에 기여하려 할 때</td></tr>
+        <tr><td class="term">Clone</td><td>저장소를 내 PC로 복사</td><td>내 PC에서 작업을 시작할 때</td></tr>
+        <tr><td class="term">Push / Pull</td><td>올리기 / 받아오기</td><td>PC ↔ GitHub 동기화 시</td></tr>
+        <tr><td class="term">Pull Request</td><td>변경 반영 요청·검토</td><td>브랜치나 Fork의 작업을 원본에 반영할 때</td></tr>
+        <tr><td class="term">Issue</td><td>버그·요청·할 일 티켓</td><td>문제 발견, 기능 제안 시</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="callout warn">
+    <div class="ttl">흔한 오해 바로잡기</div>
+    <ul style="margin-bottom:0">
+      <li><strong>"Commit하면 GitHub에 올라간다?"</strong> — 아닙니다. Commit은 내 PC의 로컬 저장소에 기록하는 것이고, GitHub에 올리려면 <strong>Push</strong>를 해야 합니다.</li>
+      <li><strong>"Fork와 Clone은 같다?"</strong> — Fork는 GitHub 서버 안에서 내 계정으로 복사, Clone은 내 컴퓨터로 복사입니다. 보통 Fork 후 Clone합니다.</li>
+      <li><strong>"Pull Request는 Pull의 요청?"</strong> — 이름 때문에 헷갈리지만, 실제로는 "내 변경을 검토하고 병합해 달라"는 요청입니다. GitLab에서는 같은 기능을 "Merge Request"라고 부릅니다.</li>
+      <li><strong>"Public 저장소는 누구나 수정할 수 있다?"</strong> — 누구나 <em>볼</em> 수는 있지만 직접 수정은 권한자만 가능합니다. 외부인은 Fork → PR로 제안만 할 수 있습니다.</li>
+    </ul>
+  </div>
+</section>
+
+<!-- 7. 활용 팁 -->
+<section id="s7">
+  <h2>7. 실무 활용 팁과 유의사항</h2>
+
+  <h3>7.1 시작할 때 권장 습관</h3>
+  <ul>
+    <li><strong>커밋 메시지는 "무엇을·왜"</strong> — "수정" 대신 "전압 프로브 오프셋 보정 로직 추가 (드리프트 문제 대응)"처럼 적습니다.</li>
+    <li><strong>작게, 자주 커밋</strong> — 하나의 커밋에 하나의 의도. 되돌리기와 검토가 쉬워집니다.</li>
+    <li><strong>.gitignore 설정</strong> — 임시 파일, 대용량 측정 데이터, 비밀번호 파일은 저장소에 올리지 않도록 제외 목록을 만듭니다.</li>
+    <li><strong>README를 먼저</strong> — 목적, 실행 방법, 필요한 장비·라이브러리를 적어 두면 미래의 나와 동료 모두에게 도움이 됩니다.</li>
+    <li><strong>라이선스 명시</strong> — 공개 저장소라면 MIT, Apache-2.0 등 라이선스 파일을 추가해 이용 조건을 분명히 합니다.</li>
+  </ul>
+
+  <h3>7.2 보안·기밀 유의사항</h3>
+  <div class="callout warn">
+    <div class="ttl">회사 자료를 올리기 전 반드시 확인</div>
+    <ul style="margin-bottom:0">
+      <li>API 키, 비밀번호, 인증서는 <strong>절대 커밋하지 않습니다</strong>. 한 번 push된 비밀은 이력에 남아 삭제해도 복구될 수 있습니다.</li>
+      <li>사내 기술 자료(공정 조건, 설계 데이터, 미공개 사양)는 회사 보안 정책에 따라 사내 Git 서버(GitHub Enterprise Server, GitLab 등)를 사용하는 것이 원칙입니다. 개인 GitHub 계정의 Private 저장소도 사규상 허용되지 않는 경우가 많습니다.</li>
+      <li>Public 저장소는 검색 엔진과 AI 학습 크롤러에 노출됩니다. 공개 전 내용을 한 번 더 점검하십시오.</li>
+    </ul>
+  </div>
+
+  <h3>7.3 경쟁·대안 서비스</h3>
+  <div class="tablewrap">
+    <table>
+      <thead><tr><th style="width:20%">서비스</th><th style="width:22%">운영</th><th>특징</th></tr></thead>
+      <tbody>
+        <tr><td class="term">GitHub</td><td>Microsoft</td><td>최대 사용자 기반, 오픈소스 생태계의 중심, Copilot 등 AI 기능 선도</td></tr>
+        <tr><td class="term">GitLab</td><td>GitLab Inc.</td><td>자체 서버 설치(self-hosted)에 강점, CI/CD 내장, 기업·기관 내부망에서 선호</td></tr>
+        <tr><td class="term">Bitbucket</td><td>Atlassian</td><td>Jira·Confluence와 통합, Atlassian 도구를 쓰는 조직에 적합</td></tr>
+        <tr><td class="term">Gitea / Forgejo</td><td>오픈소스 커뮤니티</td><td>가볍고 무료로 자체 구축 가능한 GitHub 대체품</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h3>7.4 더 배우려면</h3>
+  <ul>
+    <li><strong>GitHub Skills</strong> (skills.github.com) — 저장소 안에서 직접 실습하는 공식 무료 강의</li>
+    <li><strong>GitHub Docs</strong> (docs.github.com) — 한국어 번역 제공되는 공식 문서</li>
+    <li><strong>Pro Git</strong> (git-scm.com/book/ko) — Git 공식 교재, 한국어 무료 공개</li>
+    <li><strong>GitHub Desktop / VS Code</strong> — 명령어 없이 시작할 수 있는 GUI 도구</li>
+  </ul>
+</section>
+
+</main>
+
+<footer>
+  <strong>출처 및 검증 안내</strong>
+  <ul>
+    <li>사용자·저장소·커밋·PR 수치: GitHub Octoverse 2025 보고서 (octoverse.github.com) 및 이를 인용한 2026년 상반기 통계 정리 자료(Panto AI, Poster.ly 등). 원문에서 최신 수치를 재확인할 것을 권장합니다.</li>
+    <li>Microsoft 인수(2018년, 약 75억 달러), 창업 연혁: GitHub 공식 블로그 및 Microsoft 보도자료.</li>
+    <li>기능 설명 및 용어 정의: GitHub Docs(docs.github.com), Pro Git(git-scm.com).</li>
+    <li>본 보고서는 2026년 9월 24일 기준으로 작성되었으며, GitHub의 요금제·기능은 수시로 변경되므로 실제 사용 시 공식 사이트를 확인하십시오.</li>
+  </ul>
+</footer>
+
+</body>
+</html>
